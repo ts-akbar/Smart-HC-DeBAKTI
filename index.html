@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart HC DeBAKTI</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js untuk Graf -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Font & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #F3F4F6; -webkit-tap-highlight-color: transparent; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+
+        /* Loader Animation */
+        .loader {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 3px solid #ffffff;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Hide Scrollbar for Tabs but allow scroll */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Print Styles - Digunakan jika cetak terus, tapi kita guna fungsi edit sekarang */
+        @media print {
+            body { background-color: white; }
+            #tab-navigation, #add-student-form, .no-print, .filter-controls, header { display: none !important; }
+            #print-area { display: block !important; margin: 0; padding: 0; }
+            .page-break { page-break-before: always; }
+            #dashboard-content, #analysis-content, #graph-content { display: block !important; }
+            canvas { max-width: 100% !important; height: auto !important; }
+            footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 10px; color: #555; }
+            .overflow-x-auto { overflow: visible !important; }
+        }
+    </style>
+</head>
+<body class="text-gray-800 min-h-screen flex flex-col">
+
+    <!-- Header & Navigation (Fixed Top) -->
+    <header class="bg-blue-800 text-white shadow-lg fixed top-0 w-full z-50 no-print">
+        <div class="max-w-5xl mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-graduation-cap text-xl"></i>
+                    <h1 class="text-lg font-bold tracking-wide">Smart HC DeBAKTI</h1>
+                </div>
+                <!-- Butang Cetak Baharu -->
+                <button onclick="bukaDanEdit()" class="bg-blue-700 hover:bg-blue-600 px-3 py-1 rounded text-sm flex items-center gap-2 transition">
+                    <i class="fa-solid fa-print"></i> <span class="hidden sm:inline">Cetak Laporan</span>
+                </button>
+            </div>
+            
+            <!-- Tab Navigation -->
+            <div class="flex space-x-1 overflow-x-auto no-scrollbar pb-0" id="tab-navigation">
+                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn flex-1 py-3 text-sm font-medium border-b-4 border-white text-white focus:outline-none transition-colors">
+                    <i class="fa-solid fa-gauge-high mr-1"></i> Dashboard
+                </button>
+                <button onclick="switchTab('analysis')" id="tab-analysis" class="tab-btn flex-1 py-3 text-sm font-medium border-b-4 border-transparent text-blue-200 hover:text-white focus:outline-none transition-colors">
+                    <i class="fa-solid fa-user-pen mr-1"></i> Analisis (Input)
+                </button>
+                <button onclick="switchTab('graph')" id="tab-graph" class="tab-btn flex-1 py-3 text-sm font-medium border-b-4 border-transparent text-blue-200 hover:text-white focus:outline-none transition-colors">
+                    <i class="fa-solid fa-chart-bar mr-1"></i> Graf Bar
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow mt-32 mb-10 px-4 max-w-5xl mx-auto w-full" id="print-area">
+        
+        <!-- 1. DASHBOARD TAB -->
+        <div id="content-dashboard" class="tab-content animate-fade-in">
+            
+            <!-- Maklumat Asas Section -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+                <h2 class="text-lg font-bold text-gray-700 mb-4 flex items-center border-b pb-2">
+                    <i class="fa-solid fa-school text-blue-600 mr-2"></i> Maklumat Asas
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 uppercase">Nama Sekolah</label>
+                        <input type="text" id="nama_sekolah" class="w-full mt-1 p-2 border rounded bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="Cth: SK Taman Indah">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase">Kod Sekolah</label>
+                            <input type="text" id="kod_sekolah" class="w-full mt-1 p-2 border rounded bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="Cth: CBA1234">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase">Tahun / Tingkatan</label>
+                            <select id="tahun" class="w-full mt-1 p-2 border rounded bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition">
+                                <option value="Tahun 1">Tahun 1</option>
+                                <option value="Tahun 2">Tahun 2</option>
+                                <option value="Tahun 3">Tahun 3</option>
+                                <option value="Tahun 4">Tahun 4</option>
+                                <option value="Tahun 5">Tahun 5</option>
+                                <option value="Tahun 6">Tahun 6</option>
+                                <option value="Tingkatan 1">Tingkatan 1</option>
+                                <option value="Tingkatan 2">Tingkatan 2</option>
+                                <option value="Tingkatan 3">Tingkatan 3</option>
+                                <option value="Tingkatan 4">Tingkatan 4</option>
+                                <option value="Tingkatan 5">Tingkatan 5</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                         <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase">Nama Kelas</label>
+                            <select id="kelas" class="w-full mt-1 p-2 border rounded bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition">
+                                <option value="BRILLIANT">BRILLIANT</option>
+                                <option value="EXCELLENT">EXCELLENT</option>
+                                <option value="INTELLIGENT">INTELLIGENT</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase">Mata Pelajaran</label>
+                            <select id="subjek" class="w-full mt-1 p-2 border rounded bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition">
+                                <option>Bahasa Melayu</option>
+                                <option>Bahasa Inggeris</option>
+                                <option>Matematik</option>
+                                <option>Sains</option>
+                                <option>Sejarah</option>
+                                <option>Pendidikan Islam</option>
+                                <option>Pendidikan Moral</option>
+                                <option>Pendidikan Jasmani</option>
+                                <option>Pendidikan Kesihatan</option>
+                                <option>Pendidikan Muzik</option>
+                                <option>PSV</option>
+                                <option>Bahasa Arab</option>
+                                <option>Reka Bentuk Teknologi</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rumusan Output Analisis -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <div class="flex flex-col md:flex-row justify-between items-center border-b pb-4 mb-4 gap-4">
+                    <h2 class="text-lg font-bold text-gray-700 flex items-center">
+                        <i class="fa-solid fa-chart-pie text-purple-600 mr-2"></i> Rumusan Keseluruhan
+                    </h2>
+                    
+                    <!-- Filter Rumusan -->
+                    <div class="flex flex-wrap gap-2 text-sm filter-controls">
+                        <!-- Pilihan Tahun Ditambah -->
+                        <select id="filter-summary-year" onchange="updateDashboardSummary()" class="border rounded px-2 py-1 bg-gray-50">
+                            <option value="all">Semua Tahun</option>
+                        </select>
+                        <select id="filter-summary-class" onchange="updateDashboardSummary()" class="border rounded px-2 py-1 bg-gray-50">
+                            <option value="all">Semua Kelas</option>
+                        </select>
+                        <select id="filter-summary-subject" onchange="updateDashboardSummary()" class="border rounded px-2 py-1 bg-gray-50">
+                            <option value="all">Semua Subjek</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Display Selected Info -->
+                <div class="mb-4 text-sm text-gray-600 text-center font-medium bg-gray-50 py-2 rounded">
+                    Tahun: <span id="disp-sum-year" class="font-bold text-gray-800">Semua</span> | 
+                    Kelas: <span id="disp-sum-class" class="font-bold text-gray-800">Semua</span> | 
+                    MP: <span id="disp-sum-subject" class="font-bold text-gray-800">Semua</span>
+                </div>
+                
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+                    <div class="p-4 bg-blue-50 rounded-xl">
+                        <div class="text-2xl font-bold text-blue-700" id="summary-total">0</div>
+                        <div class="text-xs text-blue-600 uppercase font-semibold">Bil. Murid</div>
+                    </div>
+                    <div class="p-4 bg-orange-50 rounded-xl">
+                        <div class="text-2xl font-bold text-orange-700" id="summary-gpas">0.00</div>
+                        <div class="text-xs text-orange-600 uppercase font-semibold">GPMP</div>
+                    </div>
+                    <div class="p-4 bg-green-50 rounded-xl">
+                        <div class="text-2xl font-bold text-green-700" id="summary-pass">0</div>
+                        <div class="text-xs text-green-600 uppercase font-semibold">Lulus</div>
+                    </div>
+                    <div class="p-4 bg-red-50 rounded-xl">
+                        <div class="text-2xl font-bold text-red-700" id="summary-fail">0</div>
+                        <div class="text-xs text-red-600 uppercase font-semibold">Gagal</div>
+                    </div>
+                    <div class="p-4 bg-yellow-50 rounded-xl">
+                        <div class="text-2xl font-bold text-yellow-700" id="summary-nearmiss">0</div>
+                        <div class="text-xs text-yellow-600 uppercase font-semibold">Near Miss</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. ANALISIS / INPUT TAB -->
+        <div id="content-analysis" class="tab-content hidden animate-fade-in">
+            
+            <!-- Form Input -->
+            <div id="add-student-form" class="bg-white rounded-2xl shadow-lg border-t-4 border-blue-600 p-6 mb-8 transform transition hover:scale-[1.01]">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Tambah Data Murid</h3>
+                <form id="headcountForm" class="space-y-4">
+                    <!-- Baris 1: Nama -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Nama Murid</label>
+                        <input type="text" name="nama_murid" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Masukkan nama penuh...">
+                    </div>
+
+                    <!-- Baris 2: Data Headcount -->
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 bg-gray-50 p-4 rounded-xl">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 text-center">TOV</label>
+                            <input type="number" id="input-tov" name="tov" oninput="calculateOTI()" class="w-full text-center font-bold text-gray-700 border-b-2 border-gray-300 bg-transparent focus:border-blue-500 outline-none py-1" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-blue-600 text-center">ETR</label>
+                            <input type="number" id="input-etr" name="etr" oninput="calculateOTI()" class="w-full text-center font-bold text-blue-600 border-b-2 border-blue-300 bg-transparent focus:border-blue-500 outline-none py-1" placeholder="0">
+                        </div>
+                        <div class="opacity-70">
+                            <label class="block text-[10px] font-bold text-gray-400 text-center">OTI 1</label>
+                            <input type="number" id="input-oti1" name="oti1" readonly class="w-full text-center font-semibold text-gray-500 border-none bg-transparent outline-none py-1" placeholder="-">
+                        </div>
+                        <div class="opacity-70">
+                            <label class="block text-[10px] font-bold text-gray-400 text-center">OTI 2</label>
+                            <input type="number" id="input-oti2" name="oti2" readonly class="w-full text-center font-semibold text-gray-500 border-none bg-transparent outline-none py-1" placeholder="-">
+                        </div>
+                         <div>
+                            <label class="block text-[10px] font-bold text-green-600 text-center">AR (UASA)</label>
+                            <input type="number" name="actual" class="w-full text-center font-bold text-green-600 border-b-2 border-green-300 bg-transparent focus:border-green-500 outline-none py-1" placeholder="0">
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md flex justify-center items-center transition-all active:scale-95">
+                            <span id="btnText">Simpan & Tambah Senarai</span>
+                            <div id="btnLoader" class="loader ml-2 hidden"></div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Senarai Data -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b flex flex-col md:flex-row justify-between items-center bg-gray-50 gap-4">
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-bold text-gray-700">Senarai Murid</h3>
+                        <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full" id="count-badge">0 Murid</span>
+                    </div>
+                    
+                    <!-- Filter Senarai -->
+                    <div class="flex gap-2 text-sm filter-controls">
+                         <select id="filter-list-year" class="border rounded px-2 py-1 bg-white">
+                            <option value="all">Semua Tahun</option>
+                        </select>
+                        <select id="filter-list-class" class="border rounded px-2 py-1 bg-white">
+                            <option value="all">Semua Kelas</option>
+                        </select>
+                        <button onclick="updateStudentTable()" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition">
+                            Papar
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-500 uppercase bg-gray-50 border-b">
+                            <tr>
+                                <th class="px-4 py-3">Bil</th>
+                                <th class="px-4 py-3">Nama</th>
+                                <th class="px-4 py-3 text-center">Mata Pelajaran</th>
+                                <th class="px-4 py-3 text-center">TOV</th>
+                                <th class="px-4 py-3 text-center text-gray-400">OTI 1</th>
+                                <th class="px-4 py-3 text-center text-gray-400">OTI 2</th>
+                                <th class="px-4 py-3 text-center text-blue-600">ETR</th>
+                                <th class="px-4 py-3 text-center bg-green-50 text-green-700">AR (UASA)</th>
+                                <th class="px-4 py-3 text-center">Gred</th>
+                            </tr>
+                        </thead>
+                        <tbody id="student-list-body" class="divide-y divide-gray-100">
+                            <tr>
+                                <td colspan="9" class="px-4 py-8 text-center text-gray-400 italic">
+                                    Tiada data ditambah lagi. Sila isi borang di atas.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. GRAF TAB -->
+        <div id="content-graph" class="tab-content hidden animate-fade-in">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                    <h2 class="text-lg font-bold text-gray-700 text-center md:text-left">Analisis Prestasi</h2>
+                    
+                    <!-- Filter Graf -->
+                    <div class="flex flex-wrap justify-center gap-2 text-sm filter-controls">
+                        <select id="filter-graph-year" onchange="updateChart()" class="border rounded px-2 py-1 bg-gray-50">
+                            <option value="all">Semua Tahun</option>
+                        </select>
+                        <select id="filter-graph-class" onchange="updateChart()" class="border rounded px-2 py-1 bg-gray-50">
+                            <option value="all">Semua Kelas</option>
+                        </select>
+                         <select id="filter-graph-subject" onchange="updateChart()" class="border rounded px-2 py-1 bg-gray-50">
+                            <option value="all">Semua Subjek</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Chart Container -->
+                <div class="relative h-64 md:h-96 w-full">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+
+                <div class="mt-8 grid grid-cols-2 gap-4 text-center text-sm text-gray-600">
+                     <div class="p-3 bg-gray-50 rounded-lg">
+                        <span class="block font-bold text-gray-800 text-lg" id="avg-tov">0</span>
+                        <span class="text-xs">Purata TOV</span>
+                     </div>
+                     <div class="p-3 bg-blue-50 rounded-lg">
+                        <span class="block font-bold text-blue-800 text-lg" id="avg-etr">0</span>
+                        <span class="text-xs">Purata ETR</span>
+                     </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-gray-100 py-4 text-center text-xs text-gray-500 mt-auto border-t border-gray-200">
+        Powered By Ts. AKBAR @2026 Hak Cipta Terpelihara
+    </footer>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-2xl text-sm font-medium transition-opacity duration-300 opacity-0 pointer-events-none z-50">
+        Data berjaya disimpan!
+    </div>
+
+    <script>
+        // --- 1. CONFIG & STATE ---
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDGvBxoKhRbX7ma2G2fnYWPd8HiDdmlwyQ8O0JPg0-wr7XTtqrcapW0UYhjkEk9KVY/exec'; 
+        
+        // MODIFIED: Init Data from LocalStorage (Data Kekal)
+        let sessionData = JSON.parse(localStorage.getItem('hcData')) || [];
+        let chartInstance = null;
+
+        // --- 2. TAB NAVIGATION ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-white', 'text-white');
+                btn.classList.add('border-transparent', 'text-blue-200');
+            });
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            activeBtn.classList.remove('border-transparent', 'text-blue-200');
+            activeBtn.classList.add('border-white', 'text-white');
+
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.getElementById(`content-${tabId}`).classList.remove('hidden');
+
+            if(tabId === 'graph') {
+                updateChart();
+            } else if (tabId === 'dashboard') {
+                updateDashboardSummary();
+            }
+        }
+
+        // --- 3. AUTO CALCULATION (OTI) ---
+        function calculateOTI() {
+            const tov = parseFloat(document.getElementById('input-tov').value) || 0;
+            const etr = parseFloat(document.getElementById('input-etr').value) || 0;
+            
+            if (tov > 0 && etr > 0) {
+                const beza = etr - tov;
+                const kenaikan = beza / 3;
+                document.getElementById('input-oti1').value = Math.round(tov + kenaikan);
+                document.getElementById('input-oti2').value = Math.round(tov + (kenaikan * 2));
+            } else {
+                document.getElementById('input-oti1').value = "";
+                document.getElementById('input-oti2').value = "";
+            }
+        }
+
+        // --- 4. FORM SUBMISSION ---
+        const form = document.getElementById('headcountForm');
+        
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            
+            const namaSekolah = document.getElementById('nama_sekolah').value;
+            const kodSekolah = document.getElementById('kod_sekolah').value;
+            const tahun = document.getElementById('tahun').value;
+            const kelas = document.getElementById('kelas').value;
+            const subjek = document.getElementById('subjek').value;
+
+            if(!namaSekolah || !kodSekolah || !kelas) {
+                alert("Sila lengkapkan Maklumat Asas (Nama Sekolah, Kod, Tahun & Kelas) di Tab Dashboard dahulu!");
+                switchTab('dashboard');
+                return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const loader = document.getElementById('btnLoader');
+            btn.disabled = true;
+            btnText.innerText = "Menghantar...";
+            loader.classList.remove('hidden');
+
+            const formData = new FormData(form);
+            formData.append('nama_sekolah', namaSekolah);
+            formData.append('kod_sekolah', kodSekolah);
+            formData.append('tahun', tahun);
+            formData.append('kelas', kelas);
+            formData.append('subjek', subjek);
+
+            const urlEncodedData = new URLSearchParams();
+            for (const pair of formData) {
+                urlEncodedData.append(pair[0], pair[1]);
+            }
+
+            // 1. Send to Google Sheets
+            fetch(SCRIPT_URL, { 
+                method: 'POST', 
+                body: urlEncodedData,
+                mode: 'no-cors'
+            })
+            .then(() => {
+                showToast("Data dihantar ke Google Sheet!");
+            })
+            .catch(err => {
+                console.error("Ralat Network:", err);
+                alert("Ralat penghantaran. Semak sambungan internet.");
+            });
+
+            // 2. Save to Session & LocalStorage
+            const newEntry = {
+                nama: formData.get('nama_murid'),
+                tahun: tahun,
+                kelas: kelas,
+                subjek: subjek,
+                tov: parseFloat(formData.get('tov')) || 0,
+                etr: parseFloat(formData.get('etr')) || 0,
+                oti1: parseFloat(formData.get('oti1')) || 0,
+                oti2: parseFloat(formData.get('oti2')) || 0,
+                actual: parseFloat(formData.get('actual')) || 0,
+            };
+            
+            sessionData.push(newEntry);
+            
+            // MODIFIED: Update LocalStorage
+            localStorage.setItem('hcData', JSON.stringify(sessionData));
+            
+            // Update Filters Options
+            populateFilters();
+            
+            // Update Views
+            updateStudentTable();
+            updateDashboardSummary();
+
+            form.reset();
+            document.getElementById('input-oti1').value = "";
+            document.getElementById('input-oti2').value = "";
+
+            btn.disabled = false;
+            btnText.innerText = "Simpan & Tambah Senarai";
+            loader.classList.add('hidden');
+        });
+
+        // --- 5. FUNGSI CETAKAN BAHARU ---
+        function bukaDanEdit() {
+            // Kita klon bahagian utama untuk dicetak
+            // Kita perlu memastikan paparan semua tab kelihatan untuk cetakan
+            // Maka kita bina HTML khas
+            
+            // Dapatkan Data Semasa Dashboard HTML
+            const dashHtml = document.getElementById('content-dashboard').innerHTML;
+            const listHtml = document.getElementById('content-analysis').innerHTML;
+            
+            // Buat Tetingkap Baharu
+            var win = window.open('', '', 'height=800,width=1000');
+            
+            win.document.write('<html><head><title>Edit Laporan Smart HC</title>');
+            win.document.write('<script src="https://cdn.tailwindcss.com"><\/script>'); // Guna Tailwind dalam print preview
+            win.document.write('<style>');
+            win.document.write('body{font-family:Arial; padding:20px; -webkit-print-color-adjust: exact;}');
+            win.document.write('.edit-box{border:1px dashed #ccc; padding:10px; margin-bottom:20px; border-radius:8px;}');
+            win.document.write('.no-print-preview{display:none !important;}'); // Hide form inputs in preview
+            win.document.write('</style>');
+            win.document.write('</head><body class="bg-white">');
+            
+            win.document.write('<div class="flex justify-between items-center mb-6 border-b pb-4 no-print">');
+            win.document.write('<h2 class="text-xl font-bold text-blue-800">Pratonton & Edit Laporan</h2>');
+            win.document.write('<button onclick="window.print()" style="padding:10px 20px; background:blue; color:white; border:none; border-radius:5px; cursor:pointer;">🖨️ Cetak Sekarang</button>');
+            win.document.write('</div>');
+            
+            win.document.write('<div id="editor" contenteditable="true" class="edit-box p-8">');
+            
+            // Masukkan Header Sekolah
+            const namaSekolah = document.getElementById('nama_sekolah').value || "NAMA SEKOLAH";
+            win.document.write(`<h1 class="text-center text-2xl font-bold mb-2 uppercase">${namaSekolah}</h1>`);
+            win.document.write(`<h2 class="text-center text-lg font-semibold mb-8 text-gray-600">Laporan Analisis Headcount & UASA</h2>`);
+            
+            // Masukkan Bahagian Dashboard (Tanpa Input/Filter)
+            // Kita tapis elemen yang tak perlu (input fields etc) secara visual dengan clone
+            // Untuk mudah, kita insert data rumusan sebagai text static
+            
+            win.document.write(`<div class="mb-8 border rounded p-4">`);
+            win.document.write(`<h3 class="font-bold border-b pb-2 mb-4">Rumusan Eksekutif</h3>`);
+            win.document.write(document.querySelector('#content-dashboard .bg-white:nth-child(2)').innerHTML);
+            win.document.write(`</div>`);
+            
+            // Masukkan Graf (Sebagai Imej jika ada)
+            const canvas = document.getElementById('performanceChart');
+            if(canvas) {
+                const imgData = canvas.toDataURL("image/png");
+                win.document.write(`<div class="mb-8 text-center"><h3 class="font-bold mb-4">Analisis Graf</h3><img src="${imgData}" style="max-width:100%; height:auto; margin:0 auto;"></div>`);
+            }
+
+            // Masukkan Jadual Murid
+            win.document.write(`<div class="mb-8">`);
+            win.document.write(`<h3 class="font-bold border-b pb-2 mb-4">Senarai Prestasi Murid</h3>`);
+            // Ambil table sahaja
+            const tableHTML = document.querySelector('#content-analysis table').outerHTML;
+            win.document.write(tableHTML);
+            win.document.write(`</div>`);
+            
+            win.document.write('<p class="text-center text-xs text-gray-400 mt-8 border-t pt-4">Powered By Ts. AKBAR @2026</p>');
+            
+            win.document.write('</div>'); // End Editor
+            
+            // Script untuk bersihkan elemen filter dalam editor (pilihan)
+            win.document.write('<script>');
+            win.document.write('// Auto remove select/inputs in preview if any copied over\n');
+            win.document.write('document.querySelectorAll("select, input, .filter-controls").forEach(e => e.style.display="none");');
+            win.document.write('<\/script>');
+            
+            win.document.write('</body></html>');
+            
+            win.document.close();
+        }
+
+        // --- 6. HELPER FUNCTIONS ---
+        
+        function populateFilters() {
+            const getUnique = (key) => [...new Set(sessionData.map(item => item[key]))].sort();
+            
+            const years = getUnique('tahun');
+            const classes = getUnique('kelas');
+            const subjects = getUnique('subjek');
+
+            const updateSelect = (id, options, defaultText) => {
+                const select = document.getElementById(id);
+                const currentVal = select.value;
+                select.innerHTML = `<option value="all">${defaultText}</option>`;
+                options.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt;
+                    option.innerText = opt;
+                    select.appendChild(option);
+                });
+                if(options.includes(currentVal)) select.value = currentVal;
+            };
+
+            updateSelect('filter-summary-year', years, 'Semua Tahun'); // Added
+            updateSelect('filter-summary-class', classes, 'Semua Kelas');
+            updateSelect('filter-summary-subject', subjects, 'Semua Subjek');
+
+            updateSelect('filter-list-year', years, 'Semua Tahun');
+            updateSelect('filter-list-class', classes, 'Semua Kelas');
+
+            updateSelect('filter-graph-year', years, 'Semua Tahun');
+            updateSelect('filter-graph-class', classes, 'Semua Kelas');
+            updateSelect('filter-graph-subject', subjects, 'Semua Subjek');
+        }
+
+        function getGrade(mark) {
+            if (mark >= 80) return { g: 'A', c: 'text-green-600', val: 1 };
+            if (mark >= 65) return { g: 'B', c: 'text-blue-600', val: 2 };
+            if (mark >= 50) return { g: 'C', c: 'text-yellow-600', val: 3 };
+            if (mark >= 40) return { g: 'D', c: 'text-orange-600', val: 4 };
+            if (mark >= 0) return { g: 'E/F', c: 'text-red-600', val: 5 }; 
+            return { g: 'TH', c: 'text-gray-400', val: 0 };
+        }
+
+        // --- 7. VIEW UPDATES ---
+
+        function updateStudentTable() {
+            const tbody = document.getElementById('student-list-body');
+            
+            const filterYear = document.getElementById('filter-list-year').value;
+            const filterClass = document.getElementById('filter-list-class').value;
+
+            const filteredData = sessionData.filter(item => {
+                return (filterYear === 'all' || item.tahun === filterYear) &&
+                       (filterClass === 'all' || item.kelas === filterClass);
+            });
+
+            document.getElementById('count-badge').innerText = `${filteredData.length} Murid`;
+            tbody.innerHTML = ''; 
+
+            if(filteredData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-gray-400 italic">Tiada data untuk paparan ini.</td></tr>`;
+                return;
+            }
+
+            filteredData.forEach((item, i) => {
+                const gradeInfo = getGrade(item.actual);
+                const row = `
+                    <tr class="hover:bg-gray-50 transition border-b border-gray-100 animate-fade-in">
+                        <td class="px-4 py-3 font-medium text-gray-500">${i + 1}</td>
+                        <td class="px-4 py-3 font-semibold text-gray-800">
+                            ${item.nama}
+                            <div class="text-[10px] text-gray-400 font-normal">${item.kelas}</div>
+                        </td>
+                        <td class="px-4 py-3 text-center text-gray-600 text-xs">${item.subjek}</td>
+                        <td class="px-4 py-3 text-center text-gray-600">${item.tov}</td>
+                        <td class="px-4 py-3 text-center text-gray-400 text-xs">${item.oti1}</td>
+                        <td class="px-4 py-3 text-center text-gray-400 text-xs">${item.oti2}</td>
+                        <td class="px-4 py-3 text-center text-blue-600 font-bold">${item.etr}</td>
+                        <td class="px-4 py-3 text-center bg-green-50 text-green-700 font-bold">${item.actual}</td>
+                        <td class="px-4 py-3 text-center ${gradeInfo.c} font-bold">${gradeInfo.g}</td>
+                    </tr>
+                `;
+                tbody.insertAdjacentHTML('beforeend', row);
+            });
+        }
+
+        function updateDashboardSummary() {
+            const filterYear = document.getElementById('filter-summary-year').value; // Added
+            const filterClass = document.getElementById('filter-summary-class').value;
+            const filterSubject = document.getElementById('filter-summary-subject').value;
+
+            document.getElementById('disp-sum-year').innerText = filterYear === 'all' ? "Semua" : filterYear;
+            document.getElementById('disp-sum-class').innerText = filterClass === 'all' ? "Semua" : filterClass;
+            document.getElementById('disp-sum-subject').innerText = filterSubject === 'all' ? "Semua" : filterSubject;
+
+            const filteredData = sessionData.filter(item => {
+                return (filterYear === 'all' || item.tahun === filterYear) && // Added
+                       (filterClass === 'all' || item.kelas === filterClass) &&
+                       (filterSubject === 'all' || item.subjek === filterSubject);
+            });
+
+            const total = filteredData.length;
+            if(total === 0) {
+                document.getElementById('summary-total').innerText = 0;
+                document.getElementById('summary-gpas').innerText = "0.00";
+                document.getElementById('summary-pass').innerText = 0;
+                document.getElementById('summary-fail').innerText = 0;
+                document.getElementById('summary-nearmiss').innerText = 0;
+                return;
+            }
+
+            const totalActual = filteredData.reduce((acc, cur) => acc + cur.actual, 0);
+            const passCount = filteredData.filter(i => i.actual >= 40).length;
+            const failCount = total - passCount;
+            const nearMissCount = filteredData.filter(i => i.actual >= 35 && i.actual < 40).length;
+            const totalGP = filteredData.reduce((acc, cur) => acc + getGrade(cur.actual).val, 0);
+            const gpmp = (totalGP / total).toFixed(2);
+            
+            document.getElementById('summary-total').innerText = total;
+            document.getElementById('summary-gpas').innerText = gpmp;
+            document.getElementById('summary-pass').innerText = passCount;
+            document.getElementById('summary-fail').innerText = failCount;
+            document.getElementById('summary-nearmiss').innerText = nearMissCount;
+        }
+
+        function updateChart() {
+            const filterYear = document.getElementById('filter-graph-year').value;
+            const filterClass = document.getElementById('filter-graph-class').value;
+            const filterSubject = document.getElementById('filter-graph-subject').value;
+
+            const filteredData = sessionData.filter(item => {
+                return (filterYear === 'all' || item.tahun === filterYear) &&
+                       (filterClass === 'all' || item.kelas === filterClass) &&
+                       (filterSubject === 'all' || item.subjek === filterSubject);
+            });
+
+            if(filteredData.length === 0) {
+                if (chartInstance) {
+                    chartInstance.data.datasets[0].data = [0,0,0,0,0];
+                    chartInstance.update();
+                }
+                return;
+            }
+
+            const avg = (key) => (filteredData.reduce((acc, cur) => acc + cur[key], 0) / filteredData.length).toFixed(1);
+            
+            const data = {
+                tov: avg('tov'),
+                etr: avg('etr'),
+                oti1: avg('oti1'),
+                oti2: avg('oti2'),
+                actual: avg('actual')
+            };
+
+            document.getElementById('avg-tov').innerText = data.tov;
+            document.getElementById('avg-etr').innerText = data.etr;
+
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['TOV', 'OTI 1', 'OTI 2', 'ETR', 'UASA (AR)'],
+                    datasets: [{
+                        label: 'Purata Markah',
+                        data: [data.tov, data.oti1, data.oti2, data.etr, data.actual],
+                        backgroundColor: [
+                            'rgba(156, 163, 175, 0.7)', 
+                            'rgba(250, 204, 21, 0.7)',
+                            'rgba(249, 115, 22, 0.7)',
+                            'rgba(37, 99, 235, 0.7)',
+                            'rgba(22, 163, 74, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgb(156, 163, 175)',
+                            'rgb(250, 204, 21)',
+                            'rgb(249, 115, 22)',
+                            'rgb(37, 99, 235)',
+                            'rgb(22, 163, 74)'
+                        ],
+                        borderWidth: 1,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, max: 100 }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function showToast(msg = "Data berjaya disimpan!") {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+            }, 3000);
+        }
+
+        // Init: Load filters from stored data & Update Views
+        populateFilters();
+        switchTab('dashboard');
+    </script>
+</body>
+</html>
