@@ -11,6 +11,9 @@
     <!-- Chart.js untuk Graf -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <!-- SheetJS untuk Upload Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
     <!-- Font & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -38,6 +41,23 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+        /* STYLE KHAS UNTUK BUTANG HAPUS (Diadaptasi dari kod anda) */
+        .btn-hapus { 
+            background-color: #ff4d4d; 
+            color: white; 
+            border: none; 
+            padding: 8px 12px; 
+            cursor: pointer; 
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-hapus:hover { background-color: #cc0000; }
+
         /* Print Styles */
         @media print {
             body { background-color: white; }
@@ -48,12 +68,14 @@
             canvas { max-width: 100% !important; height: auto !important; }
             footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 10px; color: #555; }
             .overflow-x-auto { overflow: visible !important; }
+            /* Sembunyikan kolum tindakan masa print */
+            .col-tindakan { display: none !important; }
         }
     </style>
 </head>
 <body class="text-gray-800 min-h-screen flex flex-col">
 
-    <!-- === LOGIN SCREEN OVERLAY (TAMBAHAN) === -->
+    <!-- === LOGIN SCREEN OVERLAY === -->
     <div id="login-overlay" class="fixed inset-0 bg-blue-900 z-[100] flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md text-center">
             <div class="mb-6 flex justify-center">
@@ -98,7 +120,7 @@
                     <button onclick="bukaDanEdit()" class="bg-blue-700 hover:bg-blue-600 px-3 py-1 rounded text-sm flex items-center gap-2 transition">
                         <i class="fa-solid fa-print"></i> <span class="hidden sm:inline">Cetak</span>
                     </button>
-                    <!-- Butang Log Keluar (TAMBAHAN) -->
+                    <!-- Butang Log Keluar -->
                     <button onclick="handleLogout()" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm flex items-center gap-2 transition border border-red-500">
                         <i class="fa-solid fa-right-from-bracket"></i> <span class="hidden sm:inline">Keluar</span>
                     </button>
@@ -134,12 +156,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs font-semibold text-gray-500 uppercase">Nama Sekolah</label>
-                        <input type="text" id="nama_sekolah" class="w-full mt-1 p-2 border rounded bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="Cth: SK Taman Indah">
+                        <input type="text" id="nama_sekolah" value="SK DESA BAKTI" class="w-full mt-1 p-2 border rounded bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="Cth: SK Taman Indah">
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="text-xs font-semibold text-gray-500 uppercase">Kod Sekolah</label>
-                            <input type="text" id="kod_sekolah" class="w-full mt-1 p-2 border rounded bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="Cth: CBA1234">
+                            <input type="text" id="kod_sekolah" value="CBA7059" class="w-full mt-1 p-2 border rounded bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="Cth: CBA1234">
                         </div>
                         <div>
                             <label class="text-xs font-semibold text-gray-500 uppercase">Tahun / Tingkatan</label>
@@ -198,7 +220,6 @@
                     
                     <!-- Filter Rumusan -->
                     <div class="flex flex-wrap gap-2 text-sm filter-controls">
-                        <!-- Pilihan Tahun Ditambah -->
                         <select id="filter-summary-year" onchange="updateDashboardSummary()" class="border rounded px-2 py-1 bg-gray-50">
                             <option value="all">Semua Tahun</option>
                         </select>
@@ -250,12 +271,27 @@
             
             <!-- Form Input -->
             <div id="add-student-form" class="bg-white rounded-2xl shadow-lg border-t-4 border-blue-600 p-6 mb-8 transform transition hover:scale-[1.01]">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Tambah Data Murid</h3>
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex justify-between items-center">
+                    Tambah Data Murid
+                    <!-- Butang Upload Excel -->
+                    <div class="relative overflow-hidden inline-block">
+                        <button class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-3 rounded flex items-center gap-2">
+                            <i class="fa-solid fa-file-excel"></i> Upload Excel
+                        </button>
+                        <input type="file" id="excel-upload" accept=".xlsx, .xls, .csv" onchange="handleFileUpload(event)" class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer" title="Upload Excel">
+                    </div>
+                </h3>
+                
+                <p class="text-[10px] text-gray-500 mb-4 -mt-3 italic">Format Excel: Bil, Nama, Mata Pelajaran, Tov, Etr, AR</p>
+
                 <form id="headcountForm" class="space-y-4">
+                    <input type="hidden" id="edit-index" value="-1"> <!-- Hidden field for Edit Mode -->
+                    
                     <!-- Baris 1: Nama -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">Nama Murid</label>
-                        <input type="text" name="nama_murid" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Masukkan nama penuh...">
+                        <input type="text" id="input-nama" name="nama_murid" list="studentNameOptions" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Masukkan atau pilih nama murid...">
+                        <datalist id="studentNameOptions"></datalist>
                     </div>
 
                     <!-- Baris 2: Data Headcount -->
@@ -277,8 +313,8 @@
                             <input type="number" id="input-oti2" name="oti2" readonly class="w-full text-center font-semibold text-gray-500 border-none bg-transparent outline-none py-1" placeholder="-">
                         </div>
                          <div>
-                            <label class="block text-[10px] font-bold text-green-600 text-center">AR (UASA)</label>
-                            <input type="number" name="actual" class="w-full text-center font-bold text-green-600 border-b-2 border-green-300 bg-transparent focus:border-green-500 outline-none py-1" placeholder="0">
+                            <label class="block text-[10px] font-bold text-green-600 text-center">AR</label> <!-- UASA Removed -->
+                            <input type="number" id="input-actual" name="actual" class="w-full text-center font-bold text-green-600 border-b-2 border-green-300 bg-transparent focus:border-green-500 outline-none py-1" placeholder="0">
                         </div>
                     </div>
 
@@ -307,7 +343,6 @@
                         <select id="filter-list-class" class="border rounded px-2 py-1 bg-white">
                             <option value="all">Semua Kelas</option>
                         </select>
-                        <!-- Tambahan Filter Mata Pelajaran -->
                         <select id="filter-list-subject" class="border rounded px-2 py-1 bg-white">
                             <option value="all">Semua Subjek</option>
                         </select>
@@ -328,13 +363,14 @@
                                 <th class="px-4 py-3 text-center text-gray-400">OTI 1</th>
                                 <th class="px-4 py-3 text-center text-gray-400">OTI 2</th>
                                 <th class="px-4 py-3 text-center text-blue-600">ETR</th>
-                                <th class="px-4 py-3 text-center bg-green-50 text-green-700">AR (UASA)</th>
+                                <th class="px-4 py-3 text-center bg-green-50 text-green-700">AR</th> <!-- UASA Removed -->
                                 <th class="px-4 py-3 text-center">Gred</th>
+                                <th class="px-4 py-3 text-center col-tindakan">Tindakan</th> <!-- New Column -->
                             </tr>
                         </thead>
                         <tbody id="student-list-body" class="divide-y divide-gray-100">
                             <tr>
-                                <td colspan="9" class="px-4 py-8 text-center text-gray-400 italic">
+                                <td colspan="10" class="px-4 py-8 text-center text-gray-400 italic">
                                     Tiada data ditambah lagi. Sila isi borang di atas.
                                 </td>
                             </tr>
@@ -397,21 +433,35 @@
     <script>
         // --- 1. CONFIG & STATE ---
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDGvBxoKhRbX7ma2G2fnYWPd8HiDdmlwyQ8O0JPg0-wr7XTtqrcapW0UYhjkEk9KVY/exec'; 
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRMlJIwKkNqCVRX0trFeSR0H1NiiQafIPxX9aqdE-HB-hE0D0SyzKISEGM_xthwot1PWDF1tV5o9FlC/pub?output=csv';
         
-        // PENTING: Masukkan URL CSV Google Sheet anda di sini
-        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRMlJIwKkNqCVRX0trFeSR0H1NiiQafIPxX9aqdE-HB-hE0D0SyzKISEGM_xthwot1PWDF1tV5o9FlC/pub?output=csv'; // Contoh: 'https://docs.google.com/spreadsheets/d/e/.../pub?gid=0&single=true&output=csv'
-        
-        // Init Data from LocalStorage first (for speed), then we will fetch CSV
         let sessionData = JSON.parse(localStorage.getItem('hcData')) || [];
         let chartInstance = null;
 
-        // --- AUTHENTICATION LOGIC (TAMBAHAN) ---
-        
-        // Cek login status masa mula
+        // --- AUTHENTICATION LOGIC ---
         if (sessionStorage.getItem('isLoggedIn') === 'true') {
             document.getElementById('login-overlay').classList.add('hidden');
-            fetchSheetData(); // Fetch data only if logged in
+            fetchSheetData();
         }
+
+        // --- INIT SCHOOL INFO ---
+        const initSchoolInfo = () => {
+            const defaultNama = "SK DESA BAKTI";
+            const defaultKod = "CBA7059";
+            
+            const inputNama = document.getElementById('nama_sekolah');
+            const inputKod = document.getElementById('kod_sekolah');
+
+            if (!localStorage.getItem('nama_sekolah')) localStorage.setItem('nama_sekolah', defaultNama);
+            if (!localStorage.getItem('kod_sekolah')) localStorage.setItem('kod_sekolah', defaultKod);
+
+            inputNama.value = localStorage.getItem('nama_sekolah');
+            inputKod.value = localStorage.getItem('kod_sekolah');
+
+            inputNama.addEventListener('input', (e) => localStorage.setItem('nama_sekolah', e.target.value));
+            inputKod.addEventListener('input', (e) => localStorage.setItem('kod_sekolah', e.target.value));
+        };
+        initSchoolInfo();
 
         function handleLogin(e) {
             e.preventDefault();
@@ -422,7 +472,7 @@
                 sessionStorage.setItem('isLoggedIn', 'true');
                 document.getElementById('login-overlay').classList.add('hidden');
                 errorMsg.classList.add('hidden');
-                fetchSheetData(); // Load data after login
+                fetchSheetData();
             } else {
                 errorMsg.classList.remove('hidden');
                 document.getElementById('admin-password').value = '';
@@ -431,44 +481,68 @@
 
         function handleLogout() {
             sessionStorage.removeItem('isLoggedIn');
-            location.reload(); // Reload page to show login screen
+            location.reload();
         }
 
-        // --- 2. CSV FETCHING LOGIC ---
-        
+        // --- 2. HELPER TO SEND DATA TO SHEET (UPDATED FOR OVERWRITE/DELETE) ---
+        function sendDataToSheet(dataObj, action = 'add') {
+            const formData = new FormData();
+            
+            const namaSekolah = document.getElementById('nama_sekolah').value || "SK DESA BAKTI";
+            const kodSekolah = document.getElementById('kod_sekolah').value || "CBA7059";
+            
+            // Add action parameter (add, update, delete)
+            formData.append('action', action);
+            
+            formData.append('nama_sekolah', namaSekolah);
+            formData.append('kod_sekolah', kodSekolah);
+            formData.append('tahun', dataObj.tahun || "");
+            formData.append('kelas', dataObj.kelas || "");
+            formData.append('subjek', dataObj.subjek || "");
+            formData.append('nama_murid', dataObj.nama);
+            formData.append('tov', dataObj.tov || 0);
+            formData.append('etr', dataObj.etr || 0);
+            formData.append('actual', dataObj.actual || 0);
+            
+            formData.append('oti1', dataObj.oti1 || 0);
+            formData.append('oti2', dataObj.oti2 || 0);
+            
+            // If updating or deleting, might need old name/id if logic requires it
+            if (dataObj.old_nama) formData.append('old_nama', dataObj.old_nama);
+
+            const urlEncodedData = new URLSearchParams();
+            for (const pair of formData) {
+                urlEncodedData.append(pair[0], pair[1]);
+            }
+            
+            return fetch(SCRIPT_URL, { 
+                method: 'POST', 
+                body: urlEncodedData,
+                mode: 'no-cors'
+            }).catch(err => console.error("Send Error:", err));
+        }
+
+        // --- 3. CSV FETCHING LOGIC ---
         async function fetchSheetData() {
-            // Jika URL CSV belum diisi, abaikan
             if (!CSV_URL) {
-                console.log("CSV URL belum ditetapkan.");
                 document.getElementById('data-status-msg').innerText = "Mod Offline (Data Lokal)";
                 return;
             }
-
             document.getElementById('data-status-msg').innerText = "Sedang menyegerakkan data dari Google Sheet...";
             
             try {
                 const response = await fetch(CSV_URL);
                 const csvText = await response.text();
-                
-                // Parse CSV mudah
-                // Anggap tiada koma dalam nama/data. Jika ada, perlu parser lebih kompleks.
                 const rows = csvText.split('\n');
-                const newData = [];
-
-                // Mula dari row 1 (abaikan header row 0)
-                // Urutan kolom dari doPost AppScript:
-                // 0:Time, 1:Nama, 2:Tahun, 3:Kelas, 4:Subjek, 5:TOV, 6:ETR, 7:Actual, 8:OTI1, 9:OTI2
                 
+                const newData = [];
                 for (let i = 1; i < rows.length; i++) {
-                    const row = rows[i].split(','); // Split by comma
-                    if (row.length < 5) continue; // Abaikan baris kosong/rosak
-
-                    // Bersihkan data (buang quotes jika ada)
+                    const row = rows[i].split(',');
+                    if (row.length < 5) continue;
                     const clean = (val) => val ? val.replace(/^"|"$/g, '').trim() : "";
-
                     const nama = clean(row[1]);
-                    if (!nama) continue; // Nama wajib ada
-
+                    if (!nama) continue;
+                    
                     newData.push({
                         nama: nama,
                         tahun: clean(row[2]),
@@ -481,17 +555,16 @@
                         oti2: parseFloat(clean(row[9])) || 0
                     });
                 }
-
-                // Update Session Data dengan Data Terkini dari Sheet
+                
                 sessionData = newData;
                 localStorage.setItem('hcData', JSON.stringify(sessionData));
                 
-                // Refresh UI
                 populateFilters();
                 updateStudentTable();
                 updateDashboardSummary();
                 updateChart();
-                
+                updateStudentNameList();
+
                 document.getElementById('data-status-msg').innerText = "Data disegerakkan ✅";
                 setTimeout(() => { document.getElementById('data-status-msg').innerText = ""; }, 3000);
 
@@ -501,7 +574,119 @@
             }
         }
 
-        // --- 3. TAB NAVIGATION ---
+        // --- 4. EXCEL UPLOAD LOGIC (FIXED: ASYNC/AWAIT TO PREVENT DATA LOSS) ---
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            
+            // IMPORTANT: Make callback async
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    const rawData = XLSX.utils.sheet_to_json(worksheet, {header: 1}); 
+
+                    let headerRowIndex = -1;
+                    for (let i = 0; i < Math.min(rawData.length, 20); i++) {
+                        const rowStr = JSON.stringify(rawData[i]).toLowerCase();
+                        if (rowStr.includes('nama')) {
+                            headerRowIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (headerRowIndex === -1) {
+                         alert("Gagal membaca Excel: Tidak jumpa kolum 'Nama'. Sila pastikan format betul.");
+                         return;
+                    }
+
+                    const finalData = XLSX.utils.sheet_to_json(worksheet, {
+                        range: headerRowIndex,
+                        defval: "" 
+                    });
+                    
+                    const currentTahun = document.getElementById('tahun').value;
+                    const currentKelas = document.getElementById('kelas').value;
+
+                    let addedCount = 0;
+                    let skippedCount = 0;
+                    
+                    showToast("Sedang memproses dan menghantar data... Sila tunggu.");
+
+                    // IMPORTANT: Use for...of loop with await to ensure sequential processing
+                    // This prevents flooding the server and losing data
+                    for (const row of finalData) {
+                        const getVal = (targetKey) => {
+                            const foundKey = Object.keys(row).find(k => k.trim().toLowerCase() === targetKey.toLowerCase());
+                            return foundKey ? row[foundKey] : "";
+                        };
+                        
+                        const nama = getVal('Nama');
+                        const subjek = getVal('Mata Pelajaran') || getVal('Subjek');
+                        
+                        if (nama && String(nama).trim() !== "" && subjek && String(subjek).trim() !== "") {
+                            const tov = parseFloat(getVal('Tov')) || 0;
+                            const etr = parseFloat(getVal('Etr')) || 0;
+                            const actual = parseFloat(getVal('AR')) || parseFloat(getVal('Ar')) || 0;
+                            
+                            let oti1 = 0, oti2 = 0;
+                            if (tov > 0 && etr > 0) {
+                                const beza = etr - tov;
+                                const kenaikan = beza / 3;
+                                oti1 = Math.round(tov + kenaikan);
+                                oti2 = Math.round(tov + (kenaikan * 2));
+                            }
+
+                            const newEntry = {
+                                nama: String(nama).trim(),
+                                tahun: currentTahun,
+                                kelas: currentKelas,
+                                subjek: String(subjek).trim(),
+                                tov: tov,
+                                etr: etr,
+                                actual: actual,
+                                oti1: oti1,
+                                oti2: oti2
+                            };
+                            
+                            sessionData.push(newEntry);
+                            // Await the send to ensure it completes before next
+                            await sendDataToSheet(newEntry, 'add');
+                            addedCount++;
+                        } else {
+                            if (nama || subjek) skippedCount++;
+                        }
+                    }
+
+                    if (addedCount > 0) {
+                        localStorage.setItem('hcData', JSON.stringify(sessionData));
+                        populateFilters();
+                        updateStudentTable();
+                        updateDashboardSummary();
+                        updateChart();
+                        updateStudentNameList();
+                        
+                        let msg = `${addedCount} data berjaya dimuat naik & dihantar!`;
+                        if(skippedCount > 0) msg += ` (${skippedCount} data tidak lengkap diabaikan)`;
+                        showToast(msg);
+                    } else {
+                        alert("Tiada data sah dijumpai. Pastikan kolum Nama dan Mata Pelajaran diisi.");
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert("Ralat memproses fail Excel.");
+                }
+                event.target.value = ''; // Reset input
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // --- 5. TAB NAVIGATION ---
         function switchTab(tabId) {
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('border-white', 'text-white');
@@ -520,14 +705,31 @@
                 updateChart();
             } else if (tabId === 'dashboard') {
                 updateDashboardSummary();
+            } else if (tabId === 'analysis') {
+                updateStudentNameList();
             }
         }
 
-        // --- 4. AUTO CALCULATION (OTI) ---
+        function updateStudentNameList() {
+            const selectedYear = document.getElementById('tahun').value;
+            const selectedClass = document.getElementById('kelas').value;
+            const datalist = document.getElementById('studentNameOptions');
+            if (!datalist) return;
+            datalist.innerHTML = ''; 
+            const existingNames = [...new Set(sessionData
+                .filter(item => item.tahun === selectedYear && item.kelas === selectedClass)
+                .map(item => item.nama)
+            )].sort();
+            existingNames.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                datalist.appendChild(option);
+            });
+        }
+
         function calculateOTI() {
             const tov = parseFloat(document.getElementById('input-tov').value) || 0;
             const etr = parseFloat(document.getElementById('input-etr').value) || 0;
-            
             if (tov > 0 && etr > 0) {
                 const beza = etr - tov;
                 const kenaikan = beza / 3;
@@ -539,10 +741,105 @@
             }
         }
 
-        // --- 5. FORM SUBMISSION ---
+        // --- 6. DELETE & EDIT FUNCTIONS (UPDATED FOR SERVER ACTIONS) ---
+        function hapusMurid(rowId, nama, indexInData) {
+            let sahkan = confirm("Adakah anda pasti mahu menghapuskan " + nama + " dari Spreadsheet dan sistem?");
+            
+            if (sahkan) {
+                // Hapus dari UI
+                let row = document.getElementById(rowId);
+                if (row) {
+                    row.remove();
+                }
+
+                // Cari data sebenar untuk dapatkan detail
+                const filterYear = document.getElementById('filter-list-year').value;
+                const filterClass = document.getElementById('filter-list-class').value;
+                const filterSubject = document.getElementById('filter-list-subject').value;
+
+                let actualIndex = -1;
+                let matchCount = 0;
+                let dataToDelete = null;
+
+                for(let i=0; i<sessionData.length; i++) {
+                    const item = sessionData[i];
+                    const matches = (filterYear === 'all' || item.tahun === filterYear) &&
+                                    (filterClass === 'all' || item.kelas === filterClass) &&
+                                    (filterSubject === 'all' || item.subjek === filterSubject);
+                    if(matches) {
+                        if(matchCount === indexInData) {
+                            actualIndex = i;
+                            dataToDelete = item;
+                            break;
+                        }
+                        matchCount++;
+                    }
+                }
+
+                if(actualIndex > -1) {
+                    // Hantar arahan delete ke server (cuba padam dari sheet jika disokong)
+                    // Hantar data lengkap supaya backend boleh cari row yang sepadan
+                    sendDataToSheet(dataToDelete, 'delete');
+                    
+                    sessionData.splice(actualIndex, 1);
+                    localStorage.setItem('hcData', JSON.stringify(sessionData));
+                    
+                    updateDashboardSummary();
+                    updateChart();
+                }
+                
+                alert("Permintaan padam " + nama + " telah dihantar ke sistem.");
+            }
+        }
+
+        function editStudent(indexInFiltered) {
+            const filterYear = document.getElementById('filter-list-year').value;
+            const filterClass = document.getElementById('filter-list-class').value;
+            const filterSubject = document.getElementById('filter-list-subject').value;
+
+            let currentIndex = 0;
+            let actualIndexToEdit = -1;
+
+            for (let i = 0; i < sessionData.length; i++) {
+                const item = sessionData[i];
+                const matches = (filterYear === 'all' || item.tahun === filterYear) &&
+                                (filterClass === 'all' || item.kelas === filterClass) &&
+                                (filterSubject === 'all' || item.subjek === filterSubject);
+                
+                if (matches) {
+                    if (currentIndex === indexInFiltered) {
+                        actualIndexToEdit = i;
+                        break;
+                    }
+                    currentIndex++;
+                }
+            }
+
+            if (actualIndexToEdit > -1) {
+                const item = sessionData[actualIndexToEdit];
+                document.getElementById('add-student-form').scrollIntoView({behavior: 'smooth'});
+                
+                document.getElementById('input-nama').value = item.nama;
+                document.getElementById('input-tov').value = item.tov;
+                document.getElementById('input-etr').value = item.etr;
+                document.getElementById('input-actual').value = item.actual;
+                document.getElementById('input-oti1').value = item.oti1;
+                document.getElementById('input-oti2').value = item.oti2;
+                
+                // Simpan nama asal untuk rujukan update/overwrite
+                document.getElementById('headcountForm').dataset.oldNama = item.nama;
+                
+                document.getElementById('edit-index').value = actualIndexToEdit;
+                document.getElementById('btnText').innerText = "Kemaskini Data (Overwrite)";
+                document.getElementById('submitBtn').classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                document.getElementById('submitBtn').classList.add('bg-orange-500', 'hover:bg-orange-600');
+            }
+        }
+
+        // --- FORM SUBMISSION (HANDLE UPDATE VS ADD) ---
         const form = document.getElementById('headcountForm');
         
-        form.addEventListener('submit', e => {
+        form.addEventListener('submit', async e => {
             e.preventDefault();
             
             const namaSekolah = document.getElementById('nama_sekolah').value;
@@ -550,6 +847,7 @@
             const tahun = document.getElementById('tahun').value;
             const kelas = document.getElementById('kelas').value;
             const subjek = document.getElementById('subjek').value;
+            const editIndex = parseInt(document.getElementById('edit-index').value);
 
             if(!namaSekolah || !kodSekolah || !kelas) {
                 alert("Sila lengkapkan Maklumat Asas (Nama Sekolah, Kod, Tahun & Kelas) di Tab Dashboard dahulu!");
@@ -561,69 +859,59 @@
             const btnText = document.getElementById('btnText');
             const loader = document.getElementById('btnLoader');
             btn.disabled = true;
-            btnText.innerText = "Menghantar...";
+            btnText.innerText = editIndex > -1 ? "Mengemaskini..." : "Menghantar...";
             loader.classList.remove('hidden');
 
-            const formData = new FormData(form);
-            formData.append('nama_sekolah', namaSekolah);
-            formData.append('kod_sekolah', kodSekolah);
-            formData.append('tahun', tahun);
-            formData.append('kelas', kelas);
-            formData.append('subjek', subjek);
-
-            const urlEncodedData = new URLSearchParams();
-            for (const pair of formData) {
-                urlEncodedData.append(pair[0], pair[1]);
-            }
-
-            // 1. Send to Google Sheets (POST)
-            fetch(SCRIPT_URL, { 
-                method: 'POST', 
-                body: urlEncodedData,
-                mode: 'no-cors'
-            })
-            .then(() => {
-                showToast("Data dihantar ke Google Sheet!");
-                // Note: CSV update takes ~5 mins on Google's side. 
-                // We update local data immediately below so user sees it now.
-            })
-            .catch(err => {
-                console.error("Ralat Network:", err);
-                alert("Ralat penghantaran. Semak sambungan internet.");
-            });
-
-            // 2. Save to Session & LocalStorage (Immediate Update)
-            const newEntry = {
-                nama: formData.get('nama_murid'),
+            const entry = {
+                nama: document.getElementById('input-nama').value,
                 tahun: tahun,
                 kelas: kelas,
                 subjek: subjek,
-                tov: parseFloat(formData.get('tov')) || 0,
-                etr: parseFloat(formData.get('etr')) || 0,
-                oti1: parseFloat(formData.get('oti1')) || 0,
-                oti2: parseFloat(formData.get('oti2')) || 0,
-                actual: parseFloat(formData.get('actual')) || 0,
+                tov: parseFloat(document.getElementById('input-tov').value) || 0,
+                etr: parseFloat(document.getElementById('input-etr').value) || 0,
+                oti1: parseFloat(document.getElementById('input-oti1').value) || 0,
+                oti2: parseFloat(document.getElementById('input-oti2').value) || 0,
+                actual: parseFloat(document.getElementById('input-actual').value) || 0,
+                // Include old_nama if editing to help backend find the row
+                old_nama: editIndex > -1 ? form.dataset.oldNama : null
             };
-            
-            sessionData.push(newEntry);
+
+            if (editIndex > -1) {
+                // UPDATE MODE
+                // Send 'update' action to try and overwrite
+                await sendDataToSheet(entry, 'update');
+                sessionData[editIndex] = entry;
+                showToast("Data dikemaskini (Overwrite)!");
+            } else {
+                // ADD MODE
+                await sendDataToSheet(entry, 'add');
+                sessionData.push(entry);
+                showToast("Data baru disimpan!");
+            }
+
             localStorage.setItem('hcData', JSON.stringify(sessionData));
             
             populateFilters();
             updateStudentTable();
             updateDashboardSummary();
+            updateStudentNameList();
 
             form.reset();
+            delete form.dataset.oldNama; // Clear temp data
             document.getElementById('input-oti1').value = "";
             document.getElementById('input-oti2').value = "";
-
-            btn.disabled = false;
+            document.getElementById('edit-index').value = "-1";
+            
             btnText.innerText = "Simpan & Tambah Senarai";
+            btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            btn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
+            
+            btn.disabled = false;
             loader.classList.add('hidden');
         });
 
-        // --- 6. FUNGSI CETAKAN ---
+        // --- 7. FUNGSI CETAKAN ---
         function bukaDanEdit() {
-            // Dapatkan Data Semasa Dashboard HTML
             const dashHtml = document.getElementById('content-dashboard').innerHTML;
             const listHtml = document.getElementById('content-analysis').innerHTML;
             
@@ -635,6 +923,7 @@
             win.document.write('body{font-family:Arial; padding:20px; -webkit-print-color-adjust: exact;}');
             win.document.write('.edit-box{border:1px dashed #ccc; padding:10px; margin-bottom:20px; border-radius:8px;}');
             win.document.write('.no-print-preview{display:none !important;}');
+            win.document.write('.col-tindakan {display:none;}'); 
             win.document.write('</style>');
             win.document.write('</head><body class="bg-white">');
             
@@ -645,7 +934,7 @@
             
             win.document.write('<div id="editor" contenteditable="true" class="edit-box p-8">');
             
-            const namaSekolah = document.getElementById('nama_sekolah').value || "NAMA SEKOLAH";
+            const namaSekolah = document.getElementById('nama_sekolah').value || "SK DESA BAKTI";
             win.document.write(`<h1 class="text-center text-2xl font-bold mb-2 uppercase">${namaSekolah}</h1>`);
             win.document.write(`<h2 class="text-center text-lg font-semibold mb-8 text-gray-600">Laporan Analisis Headcount & UASA</h2>`);
             
@@ -672,6 +961,7 @@
             
             win.document.write('<script>');
             win.document.write('document.querySelectorAll("select, input, .filter-controls, #data-status-msg").forEach(e => e.style.display="none");');
+            win.document.write('document.querySelectorAll(".col-tindakan").forEach(e => e.remove());');
             win.document.write('<\/script>');
             
             win.document.write('</body></html>');
@@ -679,8 +969,6 @@
             win.document.close();
         }
 
-        // --- 7. HELPER FUNCTIONS ---
-        
         function populateFilters() {
             const getUnique = (key) => [...new Set(sessionData.map(item => item[key]))].sort();
             
@@ -707,7 +995,7 @@
 
             updateSelect('filter-list-year', years, 'Semua Tahun');
             updateSelect('filter-list-class', classes, 'Semua Kelas');
-            updateSelect('filter-list-subject', subjects, 'Semua Subjek'); // TAMBAHAN FILTER SUBJEK DI SINI
+            updateSelect('filter-list-subject', subjects, 'Semua Subjek');
 
             updateSelect('filter-graph-year', years, 'Semua Tahun');
             updateSelect('filter-graph-class', classes, 'Semua Kelas');
@@ -723,33 +1011,32 @@
             return { g: 'TH', c: 'text-gray-400', val: 0 };
         }
 
-        // --- 8. VIEW UPDATES ---
-
         function updateStudentTable() {
             const tbody = document.getElementById('student-list-body');
             
             const filterYear = document.getElementById('filter-list-year').value;
             const filterClass = document.getElementById('filter-list-class').value;
-            const filterSubject = document.getElementById('filter-list-subject').value; // AMBIL VALUE FILTER SUBJEK
+            const filterSubject = document.getElementById('filter-list-subject').value;
 
             const filteredData = sessionData.filter(item => {
                 return (filterYear === 'all' || item.tahun === filterYear) &&
                        (filterClass === 'all' || item.kelas === filterClass) &&
-                       (filterSubject === 'all' || item.subjek === filterSubject); // FILTER IKUT SUBJEK JUGA
+                       (filterSubject === 'all' || item.subjek === filterSubject);
             });
 
             document.getElementById('count-badge').innerText = `${filteredData.length} Murid`;
             tbody.innerHTML = ''; 
 
             if(filteredData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-gray-400 italic">Tiada data untuk paparan ini.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-8 text-center text-gray-400 italic">Tiada data untuk paparan ini.</td></tr>`;
                 return;
             }
 
             filteredData.forEach((item, i) => {
                 const gradeInfo = getGrade(item.actual);
+                const rowId = `student-row-${i}`;
                 const row = `
-                    <tr class="hover:bg-gray-50 transition border-b border-gray-100 animate-fade-in">
+                    <tr id="${rowId}" class="hover:bg-gray-50 transition border-b border-gray-100 animate-fade-in">
                         <td class="px-4 py-3 font-medium text-gray-500">${i + 1}</td>
                         <td class="px-4 py-3 font-semibold text-gray-800">
                             ${item.nama}
@@ -762,6 +1049,14 @@
                         <td class="px-4 py-3 text-center text-blue-600 font-bold">${item.etr}</td>
                         <td class="px-4 py-3 text-center bg-green-50 text-green-700 font-bold">${item.actual}</td>
                         <td class="px-4 py-3 text-center ${gradeInfo.c} font-bold">${gradeInfo.g}</td>
+                        <td class="px-4 py-3 text-center col-tindakan">
+                            <div class="flex justify-center gap-2">
+                                <button onclick="editStudent(${i})" class="bg-yellow-500 hover:bg-yellow-600 text-white p-1 rounded text-xs" title="Edit">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <!-- Padam Button Removed Here -->
+                            </div>
+                        </td>
                     </tr>
                 `;
                 tbody.insertAdjacentHTML('beforeend', row);
@@ -882,6 +1177,15 @@
                 }
             });
         }
+        
+        function showToast(msg = "Data berjaya disimpan!") {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+            }, 3000);
+        }
 
         // Init: Load filters from stored data & Update Views & Fetch CSV
         populateFilters();
@@ -890,5 +1194,6 @@
     </script>
 </body>
 </html>
+
 
 
